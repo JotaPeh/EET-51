@@ -4,7 +4,7 @@
 clear; clc;
 format long;
 
-EbN0dB = 0:1:13;
+EbN0dB = 5:1:15;
 EbN0 = 10.^(EbN0dB/10);
 M = 8;
 Pc = 2*qfunc(sqrt(2*EbN0*log2(M))*sin(pi/M));
@@ -16,7 +16,8 @@ ylabel('Taxa de Erro de Símbolo (Pc)');
 grid on;
 
 %%%% (b) Implemente uma função que gera aleatoriamente 1 milhão de símbolos recebidos, corrompidos por uma sequência de vetores gaussianos. Utilize o critério de mínima distância para recuperar os símbolos e calcule a taxa de erro de símbolo do 8-PSK operando com demodulação coerente. Considerando que Es = 1, ajuste o valor de N0 e calcule a taxa de erro para , dentro de um intervalo de 0−−−13 dB. Compare os valores obtidos com o resultado do item (a).
-% rng('default'); % Semente aleatória para replicabilidade
+rng('default'); % Semente aleatória para replicabilidade
+
 b = 3e6;    % Total de bits
 EbN0dB = 0:1:13;
 EbN0 = 10.^(EbN0dB/10);
@@ -77,7 +78,8 @@ title('Comparação entre Taxas de Erro Teórica e Empírica');
 hold off;
 
 %%%% (c) Repita o item (b), considerando um sistema DPSK, com oito símbolos e demodulação não coerente. No seu programa, escolha um valor aleatório para a fase θ.
-% rng('default'); % Semente aleatória para replicabilidade
+rng('default'); % Semente aleatória para replicabilidade
+
 b = 3e6;    % Total de bits
 EbN0dB = 0:1:13;
 EbN0 = 10.^(EbN0dB/10);
@@ -86,7 +88,7 @@ Ped = zeros(1,length(EbN0dB));
 %% DPSK
 M = 8;  % Símbolos
 k = log2(M);    % Bits por símbolo
-theta = pi/3;
+theta = pi/6;
 symb = exp(1j*theta)*[1, exp(pi*1j/4), 1j, exp(pi*3j/4), -1, exp(pi*5j/4), -1j, exp(pi*7j/4)];    % Símbolos
 m = randi([0, 1], 1, b);    % Sinal: Vetor de bits aleatórios 0 ou 1
 s = zeros(1,b/k);
@@ -138,15 +140,16 @@ legend('SER Empírico','SER DPSK');
 title('Comparação entre Taxas de Erro Teórica e Empírica');
 hold off;
 
-Teste
+%%%% Teste
 M = 8;                 % Modulation order
 k = log2(M);            % Bits per symbol
-EbNoVec = (0:13);      % Eb/No values (dB)
-numSymPerFrame = 1e6;   % Number of QAM symbols per frame
-
+EbNoVec = (3:13);      % Eb/No values (dB)
+numSymPerFrame = 1e6;   % Number of PSK symbols per frame
+theta = 0;
 snrdB = convertSNR(EbNoVec,"ebno","snr",BitsPerSymbol=k);
 
 berEst = zeros(size(EbNoVec));
+serEst = zeros(size(EbNoVec));
 
 for n = 1:length(snrdB)
     % Reset the error and bit counters
@@ -159,13 +162,13 @@ for n = 1:length(snrdB)
         dataSym = bit2int(dataIn,k);
         
         % DPSK modulate using 'Gray' symbol mapping
-        txSig = dpskmod(dataSym,M);
+        txSig = dpskmod(dataSym,M,theta);
         
         % Pass through AWGN channel
         rxSig = awgn(txSig,snrdB(n),'measured');
         
         % Demodulate the noisy signal
-        rxSym = dpskdemod(rxSig,M);
+        rxSym = dpskdemod(rxSig,M,theta);
         % Convert received symbols to bits
         dataOut = int2bit(rxSym,k);
         
@@ -179,14 +182,16 @@ for n = 1:length(snrdB)
     
     % Estimate the BER
     berEst(n) = numErrs/numBits;
+    serEst(n) = nnz(dataSym - rxSym)/length(dataSym);
 end
 
-berTheory = berawgn(EbNoVec,'qam',M);
+berTheory = berawgn(EbNoVec,'dpsk',M);
 
-semilogy(EbNoVec,berEst,'*')
+semilogy(EbNoVec,serEst)
 hold on
-semilogy(EbNoVec,berTheory)
+semilogy(EbNoVec,Pc)
 grid
-legend('Estimated BER','Theoretical BER')
+legend('Estimated SER','Theoretical SER')
 xlabel('Eb/No (dB)')
-ylabel('Bit Error Rate')
+ylabel('Sym Error Rate')
+hold off
